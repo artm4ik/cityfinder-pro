@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CityFinder Pro - Дашборд</title>
+    <!-- Подключаем Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Подключаем API Яндекс Карт -->
+    <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
+    <style>
+        body { background-color: #f8f9fa; }
+        /* Размер контейнера карты */
+        #karta { height: 400px; width: 100%; border-radius: 10px; z-index: 1; }
+        .kartochka-mesta { margin-bottom: 20px; transition: transform 0.2s; }
+        .kartochka-mesta:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .foto-mesta { height: 150px; object-fit: cover; border-top-left-radius: 10px; border-top-right-radius: 10px; }
+        .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    </style>
+</head>
+<body>
+
+    <!-- Навигационная панель (Шапка) -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">CityFinder Pro</a>
+            <div class="d-flex align-items-center">
+                <span id="imya-polzovatelya" class="text-white me-3">Загрузка...</span>
+                <span id="znak-pro" class="badge bg-warning text-dark me-3" style="display: none;">PRO</span>
+                <button id="knopka-vyhoda" class="btn btn-outline-light btn-sm">Выйти</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            
+            <!-- Левая колонка: Карта и Статистика -->
+            <div class="col-lg-8">
+                <!-- Блок с Картой -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-body p-2">
+                        <div id="karta"></div>
+                    </div>
+                </div>
+
+                <!-- Блок со Статистикой -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                        <span>Моя Статистика</span>
+                        <!-- Кнопка экспорта (будет показана только PRO-пользователям через JS) -->
+                        <button id="knopka-eksporta" class="btn btn-outline-success btn-sm" style="display: none;">
+                            📥 Скачать в CSV
+                        </button>
+                    </div>
+                    <div class="card-body" id="blok-statistiki">
+                        <p>Загрузка статистики...</p>
+                    </div>
+                    <div class="card-footer bg-white text-center" id="blok-pokupki-pro">
+                        <p class="text-muted small mb-2">Хотите больше аналитики?</p>
+                        <button id="knopka-kupit-pro" class="btn btn-warning btn-sm fw-bold">Активировать Pro-версию</button>
+                    </div>
+                </div>
+
+                <!-- Список Мест -->
+                <h4 class="fw-bold mb-3">Мои Места</h4>
+                <div class="row" id="spisok-mest">
+                    <!-- Сюда с помощью JavaScript будут добавляться карточки мест -->
+                    <div class="col-12 text-center text-muted"><p>Загрузка мест...</p></div>
+                </div>
+            </div>
+
+            <!-- Правая колонка: Форма добавления места -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 sticky-top" style="top: 20px;">
+                    <div class="card-header bg-white fw-bold">Добавить новое место</div>
+                    <div class="card-body">
+                        <form id="forma-dobavleniya-mesta">
+                            <div class="mb-3">
+                                <label class="form-label small">Название</label>
+                                <input type="text" class="form-control form-control-sm" id="mesto-nazvanie" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Категория</label>
+                                <select class="form-select form-select-sm" id="mesto-kategoriya">
+                                    <option value="Еда">Еда (Кафе/Ресторан)</option>
+                                    <option value="Сервисы">Сервисы (Ремонт/Услуги)</option>
+                                    <option value="Покупки">Покупки (Магазины)</option>
+                                    <option value="Отдых">Отдых (Парки/Кино)</option>
+                                    <option value="Акции">Акции и скидки</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Адрес</label>
+                                <input type="text" class="form-control form-control-sm" id="mesto-adres" required>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label small">Рейтинг (1-5)</label>
+                                    <input type="number" class="form-control form-control-sm" id="mesto-reiting" min="1" max="5" value="5">
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="form-label small">Цена</label>
+                                    <select class="form-select form-select-sm" id="mesto-cena">
+                                        <option value="Дешево">Дешево</option>
+                                        <option value="Средне" selected>Средне</option>
+                                        <option value="Дорого">Дорого</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Координаты скрыты, мы их будем брать кликом по карте -->
+                            <input type="hidden" id="mesto-shirota">
+                            <input type="hidden" id="mesto-dolgota">
+                            <p class="text-muted small mb-3">💡 <i>Чтобы указать точное место, просто кликните по карте левой кнопкой мыши.</i></p>
+
+                            <div class="mb-3">
+                                <label class="form-label small">Заметки</label>
+                                <textarea class="form-control form-control-sm" id="mesto-zametki" rows="2"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small">Фотография (необязательно)</label>
+                                <input class="form-control form-control-sm" type="file" id="mesto-foto" accept="image/*">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">Сохранить место</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Скрипты Bootstrap и наш код -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/frontend/dashboard.js"></script>
+</body>
+</html>
